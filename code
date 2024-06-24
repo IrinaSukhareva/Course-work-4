@@ -1,0 +1,616 @@
+#include <iostream>
+#include <random> 
+#include <ctime>
+#include <vector>
+#include <string>
+using namespace std;
+
+const int N_count = 4;
+const int N_perm = 96; 
+
+class Node {
+private:
+    vector <string> key;
+    vector <Node*> descendants;
+    string input_sequence;
+
+public:
+    Node(vector <string>& k, string i_s) {
+        key.clear();
+        key = k;
+        descendants.clear();
+        input_sequence = i_s;
+    }
+    ~Node() {
+        key.clear();
+        descendants.clear();
+        input_sequence = "";
+    }
+    friend class Tree_in_depth_1;
+    friend class Tree_in_depth_2;
+    friend class Tree_in_width;
+};
+
+class Tree_in_depth_2 {
+private:
+    Node* root;
+    vector <string> install_seq;
+    string min_s;
+public:
+    Tree_in_depth_2(int psi[N_count][N_perm], int phi[N_count][N_perm]);
+    ~Tree_in_depth_2() {
+        root = NULL;
+        install_seq.clear();
+        min_s.clear();
+    }
+    void add_Node(int psi[N_count][N_perm], int phi[N_count][N_perm], Node*, Node*, int);
+    bool find_Node(vector <string>, Node*);
+    friend string installation_sequence_in_depth_2(int psi[N_count][N_perm], int phi[N_count][N_perm]);
+};
+
+Tree_in_depth_2::Tree_in_depth_2(int psi[N_count][N_perm], int phi[N_count][N_perm]) {
+    install_seq.clear();
+    vector <string> tnode;
+    int count_in_node = 0;
+    for (int i = 0; i < N_perm - 1; i++) {
+        int j = i + 1;
+        while (j < N_perm) {
+            string dop = to_string(i) + " " + to_string(j);
+            tnode.push_back(dop);
+            j++;
+        }
+    }
+    string i_s = "";
+    Node* q = new Node(tnode, i_s);
+    Node* p = q;
+
+    int in = 0;
+    for (; (in < N_count) && (q->descendants.size() < N_count); in++) {
+        add_Node(psi, phi, p, q, in);
+    }
+    root = q;
+}
+
+void Tree_in_depth_2::add_Node(int psi[N_count][N_perm], int phi[N_count][N_perm], Node* p, Node* q, int in) {
+    bool check = true;
+    vector <string> supportive;
+    string supp;
+    for (int i = 0; i < p->key.size(); i++) {
+        string str1 = p->key[i];
+        int pos = str1.find(" ");
+        int state2 = stoi(str1.substr(pos + 1));
+        str1.erase(pos);
+        int state1 = stoi(str1);
+
+        if (phi[in][state1] == phi[in][state2]) {
+            if (psi[in][state1] < psi[in][state2]) supp = to_string(psi[in][state1]) + " " + to_string(psi[in][state2]);
+            else supp = to_string(psi[in][state2]) + " " + to_string(psi[in][state1]);
+
+            if (supportive.empty()) supportive.push_back(supp);
+            else {
+                bool b_count = true;
+                for (int b = 0; b < supportive.size(); b++) {
+                    if (supportive[b] == supp) b_count = false;
+                }
+                if (b_count) supportive.push_back(supp);
+            }
+        }
+    }
+    sort(supportive.begin(), supportive.end());
+
+    bool isf = false;
+    isf = find_Node(supportive, q);
+
+    Node* g = new Node(supportive, (p->input_sequence + to_string(in)));
+    p->descendants.push_back(g);
+
+    if (!supportive.empty()) {
+        if (supportive.size() == 1) {
+            string hel = supportive[0];
+            int pos1 = hel.find(" ");
+            int hel2 = stoi(hel.substr(pos1 + 1));
+            hel.erase(pos1);
+            int hel1 = stoi(hel);
+            if (hel1 == hel2) {
+                check = false;
+                if (min_s.empty()) min_s = g->input_sequence + " " + hel;
+                else {
+                    string min2 = min_s;
+                    int pos_min = min2.find(" ");
+                    min2.erase(pos_min);
+                    if (min2.size() > g->input_sequence.size()) min_s = g->input_sequence + " " + hel;
+                }
+                install_seq.push_back(g->input_sequence + " " + hel);
+            }
+        }
+        if (check && !isf) add_Node(psi, phi, g, q, g->descendants.size());
+    }
+    if (p->descendants.size() < N_count)
+        add_Node(psi, phi, p, q, p->descendants.size());
+}
+
+bool Tree_in_depth_2::find_Node(vector <string> supportive, Node* tmp) {
+    if (tmp->key.size() != 0) {
+        if (tmp != NULL && tmp->key == supportive) {
+            return true;
+        }
+        else if (tmp != NULL && tmp->key != supportive) {
+            bool a = false;
+            for (int y = 0; y < (tmp->descendants.size()); y++) {
+                a = find_Node(supportive, tmp->descendants[y]);
+                if (a) return true;
+            }
+        }
+    }
+    return false;
+}
+
+string installation_sequence_in_depth_2(int psi[N_count][N_perm], int phi[N_count][N_perm]) {
+    Tree_in_depth_2 tree(psi, phi);
+    string min = tree.min_s;
+    return min;
+}
+
+
+class Tree_in_width {
+private:
+    Node* root;
+    vector <Node*> Q_node;
+    vector <string> install_seq;
+    string min_s;
+public:
+    Tree_in_width(int psi[N_count][N_perm], int phi[N_count][N_perm]);
+    ~Tree_in_width() {
+        root = NULL;
+        Q_node.clear();
+        install_seq.clear();
+        min_s.clear();
+    }
+    void add_Node(int psi[N_count][N_perm], int phi[N_count][N_perm], Node*, Node*);
+    bool find_Node(vector <string>, Node*);
+    friend string installation_sequence_in_width(int psi[N_count][N_perm], int phi[N_count][N_perm]);
+};
+
+Tree_in_width::Tree_in_width(int psi[N_count][N_perm], int phi[N_count][N_perm]) {
+    int che1 = 0;
+    vector <string> tnode;
+    int count_in_node = 0;
+    for (int i = 0; i < N_perm - 1; i++) {
+        int j = i + 1;
+        while (j < N_perm) {
+            string dop = to_string(i) + " " + to_string(j);
+            tnode.push_back(dop);
+            j++;
+        }
+    }
+    string i_s = "";
+    Node* q = new Node(tnode, i_s);
+    Node* p = q;
+
+    add_Node(psi, phi, p, q);
+
+    while (!Q_node.empty() && min_s.empty()) {
+        p = Q_node.front();
+        add_Node(psi, phi, p, q);
+        Q_node.erase(Q_node.begin());
+    }
+    root = q;
+}
+
+void Tree_in_width::add_Node(int psi[N_count][N_perm], int phi[N_count][N_perm], Node* p, Node* q) {
+    for (int in = 0; in < N_count && min_s.empty(); in++) {
+        vector <string> supportive;
+        string supp;
+        for (int i = 0; i < p->key.size(); i++) {
+            string str1 = p->key[i];
+            int pos = str1.find(" ");
+            int state2 = stoi(str1.substr(pos + 1));
+            str1.erase(pos);
+            int state1 = stoi(str1);
+
+            if (phi[in][state1] == phi[in][state2]) {
+                if (psi[in][state1] < psi[in][state2]) supp = to_string(psi[in][state1]) + " " + to_string(psi[in][state2]);
+                else supp = to_string(psi[in][state2]) + " " + to_string(psi[in][state1]);
+
+                if (supportive.empty()) supportive.push_back(supp);
+                else {
+                    bool b_count = true;
+                    for (int b = 0; b < supportive.size(); b++) {
+                        if (supportive[b] == supp) b_count = false;
+                    }
+                    if (b_count) supportive.push_back(supp);
+                }
+            }
+        }
+        sort(supportive.begin(), supportive.end());
+
+        bool isf = false;
+        isf = find_Node(supportive, q);
+
+        Node* g = new Node(supportive, (p->input_sequence + to_string(in)));
+        p->descendants.push_back(g);
+
+        if (!supportive.empty() && !isf) {
+            Q_node.push_back(g);
+            if (supportive.size() == 1) {
+                string hel = supportive[0];
+                int pos1 = hel.find(" ");
+                int hel2 = stoi(hel.substr(pos1 + 1));
+                hel.erase(pos1);
+                int hel1 = stoi(hel);
+                if (hel1 == hel2) {
+                    min_s = g->input_sequence + " " + hel;
+                    install_seq.push_back(g->input_sequence + " " + hel);
+                }
+            }
+        }
+    }
+}
+
+bool Tree_in_width::find_Node(vector <string> supportive, Node* tmp) {
+    if (tmp->key.size() != 0) {
+        if (tmp != NULL && tmp->key == supportive) {
+            return true;
+        }
+        else if (tmp != NULL && tmp->key != supportive) {
+            bool a = false;
+            for (int y = 0; y < (tmp->descendants.size()); y++) {
+                a = find_Node(supportive, tmp->descendants[y]);
+                if (a) return true;
+            }
+        }
+    }
+    return false;
+}
+
+string installation_sequence_in_width(int psi[N_count][N_perm], int phi[N_count][N_perm]) {
+    Tree_in_width tree(psi, phi);
+    return tree.min_s;
+}
+
+
+class Tree_in_depth_1 {
+private:
+    Node* root;
+    vector <string> install_seq;//установочная последовательность
+    string min_s;
+public:
+    Tree_in_depth_1(int psi[N_count][N_count * 2], int phi[N_count][N_count], string finish_install_seq, int number_of_machine[2]);
+    ~Tree_in_depth_1() {
+        root = NULL;
+        install_seq.clear();
+        min_s.clear();
+    }
+    void add_Node(int psi[N_count][N_count * 2], int phi[N_count][N_count], Node*, Node*, int, int number_of_machine[2]);
+    vector <string> read_install_creat_tree(int psi[N_count][N_count * 2], int phi[N_count][N_count], Node*, Node*, string, int number_of_machine[2]);
+    bool find_Node(vector <string>, Node*);
+    friend string installation_sequence_in_depth_1(int psi[N_count][N_perm], int phi[N_count][N_count]);
+};
+
+Tree_in_depth_1::Tree_in_depth_1(int psi[N_count][N_count * 2], int phi[N_count][N_count], string finish_install_seq, int number_of_machine[2]) {
+    install_seq.clear();
+    vector <string> tnode;
+
+    for (int i = 0; i < N_count * 2 - 1; i++) {
+        int j = i + 1;
+        while (j < N_count * 2) {
+            string dop = to_string(i) + " " + to_string(j);
+            tnode.push_back(dop);
+            j++;
+        }
+    }
+    string i_s = "";
+    Node* q = new Node(tnode, i_s);
+    Node* p = q;
+
+    if (finish_install_seq == "") {
+        int in = 0;
+        for (; (in < N_count) && (q->descendants.size() < N_count); in++) {
+            add_Node(psi, phi, p, q, in, number_of_machine);
+        }
+    }
+    else {
+        vector <string> supportive = read_install_creat_tree(psi, phi, p, q, finish_install_seq, number_of_machine);
+        if (!supportive.empty()) {
+            bool flag = true;
+            if (supportive.size() == 1) {
+                string str1 = supportive[0];
+                int pos = str1.find(" ");
+                int state2 = stoi(str1.substr(pos + 1));
+                str1.erase(pos);
+                int state1 = stoi(str1);
+                if (state1 == state2)flag = false;
+            }
+            if (flag) {
+                p->key = supportive;
+                p->descendants.clear();
+                p->input_sequence = finish_install_seq;
+                int in = 0;
+                for (; (in < N_count) && (p->descendants.size() < N_count); in++) {
+                    add_Node(psi, phi, p, q, in, number_of_machine);
+                }
+            }
+        }
+        else {
+            cout << "\n\nfunction install_in_depth = " << finish_install_seq;
+        }
+
+    }
+    root = q;
+}
+
+vector <string> Tree_in_depth_1::read_install_creat_tree(int psi[N_count][N_count * 2], int phi[N_count][N_count], Node* p, Node* q, string finish_install_seq, int number_of_machine[2]) {
+    vector <string> res;
+    for (int i_s = 0; i_s < finish_install_seq.size(); i_s++) {
+        int in = finish_install_seq[i_s] - '0';
+        vector <string> supportive;
+        string supp;
+        for (int i = 0; i < p->key.size(); i++) {
+            string str1 = p->key[i];
+            int pos = str1.find(" ");
+            int state2 = stoi(str1.substr(pos + 1));
+            str1.erase(pos);
+            int state1 = stoi(str1);
+            if (phi[in][state1 % N_count] == phi[in][state2 % N_count]) {
+                if (psi[in][state1] < psi[in][state2]) supp = to_string(psi[in][state1]) + " " + to_string(psi[in][state2]);
+                else supp = to_string(psi[in][state2]) + " " + to_string(psi[in][state1]);
+
+                if (supportive.empty()) supportive.push_back(supp);
+                else {
+                    bool b_count = true;
+                    for (int b = 0; b < supportive.size(); b++) {
+                        if (supportive[b] == supp) b_count = false;
+                    }
+                    if (b_count) supportive.push_back(supp);
+                }
+            }
+        }
+        sort(supportive.begin(), supportive.end());
+
+        Node* g = new Node(supportive, (p->input_sequence + to_string(in)));
+        p->descendants.push_back(g);
+        if (supportive.empty()) {
+            return res;
+        }
+        p = g;
+        res = supportive;
+    }
+    return res;
+}
+
+void Tree_in_depth_1::add_Node(int psi[N_count][N_count * 2], int phi[N_count][N_count], Node* p, Node* q, int in, int number_of_machine[2]) {
+    bool check = true;
+    vector <string> supportive;
+    string supp;
+    for (int i = 0; i < p->key.size(); i++) {
+        string str1 = p->key[i];
+        int pos = str1.find(" ");
+        int state2 = stoi(str1.substr(pos + 1));
+        str1.erase(pos);
+        int state1 = stoi(str1);
+
+        if (phi[in][state1 % N_count] == phi[in][state2 % N_count]) {
+            if (psi[in][state1] < psi[in][state2]) supp = to_string(psi[in][state1]) + " " + to_string(psi[in][state2]);
+            else supp = to_string(psi[in][state2]) + " " + to_string(psi[in][state1]);
+
+            if (supportive.empty()) supportive.push_back(supp);
+            else {
+                bool b_count = true;
+                for (int b = 0; b < supportive.size(); b++) {
+                    if (supportive[b] == supp) b_count = false;
+                }
+                if (b_count) supportive.push_back(supp);
+            }
+        }
+    }
+    sort(supportive.begin(), supportive.end());
+    bool isf = find_Node(supportive, q);
+
+    Node* g = new Node(supportive, (p->input_sequence + to_string(in)));
+    p->descendants.push_back(g);
+
+    if (!supportive.empty()) {
+        if (supportive.size() == 1) {
+            string hel = supportive[0];
+            int pos1 = hel.find(" ");
+            int hel2 = stoi(hel.substr(pos1 + 1));
+            hel.erase(pos1);
+            int hel1 = stoi(hel);
+            if (hel1 == hel2) {
+                check = false;
+                if (min_s.empty()) min_s = g->input_sequence;
+                else {
+                    if (min_s.size() > g->input_sequence.size()) min_s = g->input_sequence;
+                }
+                install_seq.push_back(g->input_sequence + " " + hel);
+            }
+        }
+        if (check && !isf) add_Node(psi, phi, g, q, g->descendants.size(), number_of_machine);
+    }
+    if (p->descendants.size() < N_count) 
+        add_Node(psi, phi, p, q, p->descendants.size(), number_of_machine);
+
+}
+
+bool Tree_in_depth_1::find_Node(vector <string> supportive, Node* tmp) {
+    if (tmp->key.size() != 0) {
+        if (tmp != NULL && tmp->key == supportive) {
+            return true;
+        }
+        else if (tmp != NULL && tmp->key != supportive) {
+            bool a = false;
+            for (int y = 0; y < (tmp->descendants.size()); y++) {
+                a = find_Node(supportive, tmp->descendants[y]);
+                if (a) return true;
+            }
+        }
+    }
+    return false;
+}
+
+string installation_sequence_in_depth_1(int psi_1[N_count][N_perm], int phi[N_count][N_count]) {
+    int psi[N_count][N_count * 2];
+    string finish_install_seq = "";
+    int machines = N_perm / N_count;
+
+    for (int machine1 = 0; machine1 < machines - 1; machine1++) {
+        for (int machine2 = machine1 + 1; machine2 < machines; machine2++) {
+
+            for (int i = 0; i < N_count; i++) {
+                for (int j = 0; j < N_count; j++)
+                    psi[i][j] = psi_1[i][j + N_count * machine1] % N_count;
+            }
+            for (int i = 0; i < N_count; i++) {
+                for (int j = 0; j < N_count; j++)
+                    psi[i][j + N_count] = psi_1[i][j + N_count * machine2] % N_count + N_count;
+            }
+
+
+            cout << endl << "PSI_:" << endl;
+            for (int i = 0; i < N_count; i++) {
+                for (int j = 0; j < N_count * 2; j++)
+                    cout << psi[i][j] << " ";
+                cout << endl;
+            }
+            int number_of_machine[2]{ machine1, machine2 };
+
+            {
+                Tree_in_depth_1 tree(psi, phi, finish_install_seq, number_of_machine);
+                finish_install_seq = finish_install_seq + tree.min_s;
+            }
+        }
+    }
+    cout << "\n\nfunction install_in_depth = " << finish_install_seq;
+    return finish_install_seq;
+}
+
+
+
+
+
+
+void generate(int psi[N_count][N_count], int phi[N_count][N_count]) {
+    std::mt19937 mersenne{ static_cast<std::mt19937::result_type>(std::time(nullptr)) };
+    std::uniform_int_distribution<> die{ 0, 2 };
+
+    int permutation[N_count];
+psi_1: for (int i = 0; i < N_count; i++) {
+    for (int k = 0; k < N_count; k++)
+        permutation[k] = k;
+    for (int j = 0; j < N_count; j++) {
+    psi_2: int b = die(mersenne);
+        if (permutation[b] != -1)
+        {
+            psi[j][i] = permutation[b];
+            permutation[b] = -1;
+        }
+        else goto psi_2;
+    }
+}
+for (int i = 0; i < N_count; i++) {
+    for (int j = 0; j < N_count; j++) {
+        int count = 0;
+        for (int k = 0; k < N_count; k++)
+            if ((psi[k][i] == psi[k][j]) && (i != j))
+                count++;
+        if (count == N_count)
+            goto psi_1;
+    }
+}
+phi_1: for (int i = 0; i < N_count; i++) {
+for (int k = 0; k < N_count; k++)
+    permutation[k] = k;
+for (int j = 0; j < N_count; j++) {
+phi_2: int b = die(mersenne);
+    if (permutation[b] != -1)
+    {
+        phi[j][i] = permutation[b];
+        permutation[b] = -1;
+    }
+    else goto phi_2;
+}
+}
+for (int i = 0; i < N_count; i++) {
+    for (int j = 0; j < N_count; j++) {
+        int count = 0;
+        for (int k = 0; k < N_count; k++)
+            if ((phi[k][i] == phi[k][j]) && (i != j))
+                count++;
+        if (count == N_count)
+            goto phi_1;
+    }
+}
+}
+unsigned int factorial(unsigned int n) {
+    if (n == 0)
+        return 1;
+    return n * factorial(n - 1);
+}
+void swap(int a[N_count], int i, int j)
+{
+    int s = a[i];
+    a[i] = a[j];
+    a[j] = s;
+}
+bool NextSet(int a[N_count])
+{
+    int j = N_count - 2;
+    while (j != -1 && a[j] >= a[j + 1]) j--;
+    if (j == -1)
+        return false;
+    int k = N_count - 1;
+    while (a[j] >= a[k]) k--;
+    swap(a, j, k);
+    int l = j + 1, r = N_count - 1;
+    while (l < r)
+        swap(a, l++, r--);
+    return true;
+}
+
+void exceptional_class(int psi[N_count][N_count], int psi_class[N_count][N_perm], int phi[N_count][N_count], int phi_class[N_count][N_perm]) {
+
+    for (int k = 0; k < N_perm; k++) {
+        for (int i = 0; i < N_count; i++) {
+            phi_class[i][k] = phi[i][k % N_count];
+        }
+    }
+    cout << endl << endl << "PHI_class:" << endl;
+    for (int i = 0; i < N_count; i++) {
+        for (int j = 0; j < N_perm; j++)
+            cout << phi_class[i][j] << " ";
+        cout << endl;
+    }
+
+
+    int a[N_count];
+    int psi_subs[N_perm];
+    for (int i = 0; i < N_count; i++) {
+        a[i] = i;
+        psi_subs[i] = i;
+    }
+
+    int j = N_count;
+
+    while (NextSet(a)) {
+        for (int i = 0; i < N_count; i++) {
+            psi_subs[j] = a[i];
+            j++;
+        }
+    }
+
+    int d = 0;
+    for (int c = 0; c < N_perm; c++) {
+        for (int s = 0; s < N_count; s++) {
+            psi_class[s][c] = psi[s][psi_subs[c]] + d;
+        }
+        if (c % N_count == N_count - 1) d = d + 3;
+    }
+    cout << endl << "PSI_class:" << endl;
+    for (int i = 0; i < N_count; i++) {
+        for (int j = 0; j < N_perm; j++)
+            cout << psi_class[i][j] << " ";
+        cout << endl;
+    }
+
+}
+
